@@ -46,9 +46,9 @@ let buildperfarray timealgo nmax =
    one 1 |> Seq.toArray
 
 //test
-let test  = timealgo2      (fun ar ->  ar |> List.sort) (fun n -> [|1 .. n|] |> shuffle) 10000
-let test1 = buildperfarray (timealgo2 (fun ar ->  ar |> List.sort) (fun n -> [|1 .. n|] |> shuffle)) 10000 
-let test2 = buildperfarray (timealgo2 (fun ar ->  ar |> Seq.sort)  (fun n -> [|1 .. n|] |> shuffle)) 10000 
+//let test  = timealgo2      (fun ar ->  ar |> List.sort) (fun n -> [|1 .. n|] |> shuffle) 10000
+//let test1 = buildperfarray (timealgo2 (fun ar ->  ar |> List.sort) (fun n -> [|1 .. n|] |> shuffle)) 10000 
+//let test2 = buildperfarray (timealgo2 (fun ar ->  ar |> Seq.sort)  (fun n -> [|1 .. n|] |> shuffle)) 10000 
 
 //ALGOS
 
@@ -83,10 +83,7 @@ and mergesort  = function
    | ar       -> let ar1 = ar.[0 .. ar.Length / 2 - 1]
                  let ar2 = ar.[ar.Length / 2 .. ar.Length - 1]
                  merge (mergesort ar1) (mergesort ar2)  |> List.toArray
-let testval = ( [|1 .. 100|] |> shuffle |> List.toArray)                 
-let test4 = mergesort testval
-
-
+let test4 = mergesort  ( [|1 .. 100|] |> shuffle |> List.toArray)  
 
 let rec mergemutable (ar1:'a array) (ar2:'a array)  = 
    let inext, jnext = ref 0 , ref 0
@@ -95,14 +92,14 @@ let rec mergemutable (ar1:'a array) (ar2:'a array)  =
       match !inext < ar1.Length, !jnext < ar2.Length with
       | true , true  -> if ar1.[!inext] < ar2.[!jnext] then
                            inext := !inext + 1
-                           ar1.[!inext]
+                           ar1.[!inext - 1]
                         else
                            jnext := !jnext + 1
-                           ar2.[!jnext]
+                           ar2.[!jnext - 1]
       | false, true  -> jnext := !jnext + 1
-                        ar2.[!jnext]
+                        ar2.[!jnext - 1]
       | true , false -> inext := !inext + 1
-                        ar1.[!inext]
+                        ar1.[!inext - 1 ]
       | _ -> failwith "should not happen"
     ]
 and mergesortmutable  = function 
@@ -110,10 +107,44 @@ and mergesortmutable  = function
    | [|a|]    -> [|a|]
    | ar       -> let ar1 = ar.[0 .. ar.Length / 2 - 1]
                  let ar2 = ar.[ar.Length / 2 .. ar.Length - 1]
-                 merge (mergesort ar1) (mergesort ar2)  |> List.toArray
-let testvalmutable  = ( [|1 .. 100|] |> shuffle |> List.toArray)                 
-let testmutable = mergesort testval
+                 (mergemutable (mergesortmutable ar1) (mergesortmutable ar2) )    |> List.toArray
+let testmutable = mergesortmutable   ( [|1 .. 100|] |> shuffle |> List.toArray)  
 
+
+
+let mergesortmutable2 ar =
+   let mutable sarlast = ref (Array.copy ar)
+   let mutable sarcurr = ref (Array.copy ar)
+
+   let rec mergemutable (sarcurr:'a array ref) (sarlast:'a array ref) s (s1,e1) (s2,e2)  = 
+      let mutable inext, jnext = s1 , s2
+
+      for k in [1 ..  ((e1-s1+1) + (e2-s2+1)) ] do
+         match inext <= e1, jnext <= e2 with
+         | true , true  -> if (!sarlast).[inext] < (!sarlast).[jnext] then
+                              (!sarcurr).[(s+(k-1))] <- (!sarlast).[inext]
+                              inext <- inext + 1
+                           else
+                              (!sarcurr).[(s+(k-1))] <- (!sarlast).[jnext]
+                              jnext <- jnext + 1
+         | false, true  -> (!sarcurr).[(s+(k-1))] <- (!sarlast).[jnext]
+                           jnext <- jnext + 1
+         | true , false -> (!sarcurr).[(s+(k-1))] <- (!sarlast).[inext]
+                           inext <- inext + 1
+         | _ -> failwith "should not happen"
+      (s1,e2)
+   and mergesortmutable (sarcurr:'a array ref) (sarlast:'a array ref) (s,e) = 
+      match s, e with
+       | s, e when s >= e -> s,e
+       | _                -> let m = (e-s+1) / 2
+                             let ar1 = (mergesortmutable sarlast sarcurr (s, s + m - 1))
+                             let ar2 = (mergesortmutable sarlast sarcurr (s + m, e))
+                             let ret = mergemutable sarcurr sarlast s ar1 ar2
+                             ret
+   do mergesortmutable  sarcurr sarlast (0, ar.Length - 1) |> ignore
+   !sarcurr
+
+let testmutable2 = mergesortmutable2   ( [|1 .. 100|] |> shuffle |> List.toArray)  
 
 
 //GUI
@@ -125,6 +156,7 @@ let algos = [|  { Title = "List sort"           ; mainalgo = (timealgo2 (List.so
                 { Title = "Seq sort with cons"  ; mainalgo = (timealgo2 (seqsortwcons)         (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 } 
                 { Title = "mergesort "          ; mainalgo = (timealgo2 (mergesort)            (fun n -> [|1 .. n|] |> shuffle|> List.toArray )) ; nlimit = 10000 } 
                 { Title = "mergesort mutable "  ; mainalgo = (timealgo2 (mergesortmutable)     (fun n -> [|1 .. n|] |> shuffle|> List.toArray )) ; nlimit = 10000 } 
+                { Title = "mergesort mutable 2"  ; mainalgo = (timealgo2 (mergesortmutable)     (fun n -> [|1 .. n|] |> shuffle|> List.toArray )) ; nlimit = 10000 } 
                     |]
 
 type stringdisplay = {Algo:string}
