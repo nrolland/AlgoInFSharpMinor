@@ -41,7 +41,7 @@ let buildperfarray timealgo nmax =
    let rec one n = seq {
       let t =  timealgo  n
       yield (n,t)
-      if t < 50000  &&  n < nmax then
+      if t < 500000  &&  n < nmax then
          yield! one  (n * 3) }
    one 1 |> Seq.toArray
 
@@ -51,18 +51,82 @@ let test1 = buildperfarray (timealgo2 (fun ar ->  ar |> List.sort) (fun n -> [|1
 let test2 = buildperfarray (timealgo2 (fun ar ->  ar |> Seq.sort)  (fun n -> [|1 .. n|] |> shuffle)) 10000 
 
 //ALGOS
-type algotrial = {Title:string; mainalgo:(int -> int ); nlimit:int}
 
 let seqsortwcons s = let r = s |> Seq.sort
                      let a = r|> Seq.head
                      ()
 
-let algos = [|  { Title = "List sort"           ; mainalgo = (timealgo2 (List.sort)     (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 } 
-                { Title = "Seq sort"            ; mainalgo = (timealgo2 (Seq.sort)      (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 }  
-                { Title = "Seq sort with cons"  ; mainalgo = (timealgo2 (seqsortwcons)  (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 } 
-                    |]
+let rec merge (ar1:'a array) (ar2:'a array)  = 
+   let rec index (islastfromAr1, ilast, jlast) = seq {
+      let inext, jnext = ilast + 1, jlast + 1 
+      match inext < ar1.Length, jnext < ar2.Length with
+      | true , true  -> let indexnext = if ar1.[inext] < ar2.[jnext] then
+                                            (true, inext, jlast)
+                                        else
+                                            (false, ilast, jnext)
+                        yield  Some(indexnext)
+                        yield! index indexnext 
+      | false, true  -> let indexnext = (false, ilast, jnext)
+                        yield  Some(indexnext)
+                        yield! index indexnext 
+      | true , false -> let indexnext = (true, inext, jlast)
+                        yield  Some(indexnext)
+                        yield! index indexnext 
+      | false, false -> yield  None
+   }
+   let mergeindex = index (false, -1, -1)
+   [for (formar1, i,j) in  mergeindex |> Seq.choose (id) -> if formar1 then ar1.[i] else ar2.[j] ]
+
+and mergesort  = function 
+   | [| |]    -> [||]
+   | [|a|]    -> [|a|]
+   | ar       -> let ar1 = ar.[0 .. ar.Length / 2 - 1]
+                 let ar2 = ar.[ar.Length / 2 .. ar.Length - 1]
+                 merge (mergesort ar1) (mergesort ar2)  |> List.toArray
+let testval = ( [|1 .. 100|] |> shuffle |> List.toArray)                 
+let test4 = mergesort testval
+
+
+
+let rec mergemutable (ar1:'a array) (ar2:'a array)  = 
+   let inext, jnext = ref 0 , ref 0
+
+   [ for k in [1 .. (ar1.Length + ar2.Length)]  ->
+      match !inext < ar1.Length, !jnext < ar2.Length with
+      | true , true  -> if ar1.[!inext] < ar2.[!jnext] then
+                           inext := !inext + 1
+                           ar1.[!inext]
+                        else
+                           jnext := !jnext + 1
+                           ar2.[!jnext]
+      | false, true  -> jnext := !jnext + 1
+                        ar2.[!jnext]
+      | true , false -> inext := !inext + 1
+                        ar1.[!inext]
+      | _ -> failwith "should not happen"
+    ]
+and mergesortmutable  = function 
+   | [| |]    -> [||]
+   | [|a|]    -> [|a|]
+   | ar       -> let ar1 = ar.[0 .. ar.Length / 2 - 1]
+                 let ar2 = ar.[ar.Length / 2 .. ar.Length - 1]
+                 merge (mergesort ar1) (mergesort ar2)  |> List.toArray
+let testvalmutable  = ( [|1 .. 100|] |> shuffle |> List.toArray)                 
+let testmutable = mergesort testval
+
+
 
 //GUI
+type algotrial = {Title:string; mainalgo:(int -> int ); nlimit:int}
+
+
+let algos = [|  { Title = "List sort"           ; mainalgo = (timealgo2 (List.sort)            (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 } 
+                { Title = "Seq sort"            ; mainalgo = (timealgo2 (Seq.sort)             (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 }  
+                { Title = "Seq sort with cons"  ; mainalgo = (timealgo2 (seqsortwcons)         (fun n -> [|1 .. n|] |> shuffle)) ; nlimit = 10000 } 
+                { Title = "mergesort "          ; mainalgo = (timealgo2 (mergesort)            (fun n -> [|1 .. n|] |> shuffle|> List.toArray )) ; nlimit = 10000 } 
+                { Title = "mergesort mutable "  ; mainalgo = (timealgo2 (mergesortmutable)     (fun n -> [|1 .. n|] |> shuffle|> List.toArray )) ; nlimit = 10000 } 
+                    |]
+
 type stringdisplay = {Algo:string}
 let tostringable s = {Algo = s.ToString()}
 type MainWindow = XAML<"MainWindow.xaml">
