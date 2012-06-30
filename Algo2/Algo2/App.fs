@@ -143,8 +143,113 @@ let mergesortmutable2 ar =
                              ret
    do mergesortmutable  sarcurr sarlast (0, ar.Length - 1) |> ignore
    !sarcurr
-
 let testmutable2 = mergesortmutable2   ( [|1 .. 100|] |> shuffle |> List.toArray)  
+
+
+
+let mergesortcountmutable ar =
+   let mutable sarlast = Array.copy ar
+   let mutable sarcurr = ar
+
+   let rec mergemutable (sarcurr:'a array) (sarlast:'a array) s (s1,e1) (s2,e2)  = 
+      let mutable inext, jnext, splits = s1 , s2, uint64 0
+
+      for k in [1 ..  ((e1-s1+1) + (e2-s2+1)) ] do
+         match inext <= e1, jnext <= e2 with
+         | true , true  -> if sarlast.[inext] < sarlast.[jnext] then
+                              sarcurr.[(s+(k-1))] <- sarlast.[inext]
+                              inext <- inext + 1
+                           else
+                              splits <- splits + uint64 (e1-inext + 1)
+                              sarcurr.[(s+(k-1))] <- sarlast.[jnext]
+                              jnext <- jnext + 1
+         | false, true  -> sarcurr.[(s+(k-1))] <- sarlast.[jnext]
+                           jnext <- jnext + 1
+         | true , false -> sarcurr.[(s+(k-1))] <- sarlast.[inext]
+                           inext <- inext + 1
+         | _ -> failwith "should not happen"
+      (s1,e2), splits
+   and mergesortmutable (sarcurr:'a array) (sarlast:'a array) (s,e) = 
+      match s, e with
+       | s, e when s >= e -> (s,e), uint64 0
+       | _                -> let m = (e-s+1) / 2
+                             let ar1 = (mergesortmutable sarlast sarcurr (s, s + m - 1))
+                             let ar2 = (mergesortmutable sarlast sarcurr (s + m, e))
+                             let ret = mergemutable sarcurr sarlast s (fst ar1) (fst ar2)
+                             fst ret, snd ret + snd ar1 + snd ar2
+   let (_, splits ) = mergesortmutable  sarcurr sarlast (0, ar.Length - 1)
+   sarcurr, splits
+
+
+let testmutable3 = mergesortcountmutable   ( [|1 .. 100|] |> shuffle |> List.toArray)  
+let testmutable4 = mergesortcountmutable   [|1;4;3;9;8;6;7;2;5|]
+
+
+
+// mergeSort
+let rec split = function
+   | [] -> ([], [])
+   | a::[] -> ([a], [])
+   | l -> List.splitAt (l.Length / 2 ) l
+
+let rec merges p q =
+   match p, q with
+   | [], [] -> []
+   | a, [] | [], a -> a
+   | x::xs, y::ys when x<=y -> x::merges xs q
+   | x::xs, y::ys -> y::merges p ys
+  
+let rec mergesSort = function
+   | [] -> []
+   | a::[] -> [a]
+   | lst ->
+       let p, q = split lst
+       let ps = mergesSort p
+       let qs = mergesSort q
+       merges ps qs
+
+let testmutable5 = mergesSort   ( [|1 .. 100|] |> shuffle)  
+let testmutable6 = mergesSort   [1;4;3;9;8;6;7;2;5]
+
+let rec median (ar:'a array) a b c =
+   if ar.[a] <= ar.[b] then
+      if ar.[b] <= ar.[c] then b
+         else median ar a  c b
+   else
+      median ar b a c
+
+
+let getpivot1 (ar:'a array) l r = l  
+let getpivot2 (ar:'a array) l r = r   
+let getpivot3 (ar:'a array) l r = median ar l ((l + r) /2) r
+
+let quickSortAndCount (ar:'a array) getpivoti =
+   let mutable i, j = 0, 0
+
+   let swap i j = let t = ar.[i] in (ar.[i] <- ar.[j] ; ar.[j] <- t)
+   let rec quicksortint l r  = 
+      let m = r - l + 1 
+      if l < r then let pivoti = getpivoti ar l r
+                    swap l pivoti                    
+                    let next = [(l+1) .. r] 
+                               |> List.fold (fun next i -> if ar.[i] < ar.[l] 
+                                                           then   swap next i
+                                                                  next + 1
+                                                           else   next       ) (l+1)
+                    let pivoti = next - 1
+                    swap l pivoti
+                    let res1, res2, res3  = (m - 1) , quicksortint l (pivoti-1)  , quicksortint (pivoti+1) r 
+                    res1 + res2 + res3
+      else
+         0
+
+   quicksortint 0 (ar.Length-1)
+
+
+let testmutable7 = quickSortAndCount   ( [|1 .. 3|]) getpivot3// |> shuffle |> List.toArray)  
+
+
+
 
 
 //GUI
@@ -167,7 +272,7 @@ let loadWindow() =
    let area = Charting.FSharpChart.Area [for x in 1 .. 10 -> sprintf "Column %i" x, x]
    let formsHost = new Forms.Integration.WindowsFormsHost(Child =  new Charting.ChartControl(area))
    window.Root.Title <- "Algorithm comparison"
-   window.Graph.Children.Add(formsHost)
+   window.Graph.Children.Add(formsHost) |> ignore
    window.Algos.ItemsSource <- algos
    window.Run.Click.Add(fun _ -> let usel = window.Algos.SelectedItem 
                                  if usel <> null then
@@ -184,6 +289,8 @@ let loadWindow() =
    
    window.Root
 
+#if INTERACTIVE
+#else
 [<STAThread>]
 (new Application()).Run(loadWindow()) |> ignore
-
+#endif

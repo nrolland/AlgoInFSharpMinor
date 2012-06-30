@@ -42,6 +42,8 @@
     <None Include="packages.config" />
     <None Include="app.config" />
     <None Include="Script1.fsx" />
+    <None Include="algo.fsx" />
+    <None Include="algo2.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Accessibility" />
