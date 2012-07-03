@@ -1,4 +1,8 @@
+#if INTERACTIVE
+#r "System.Xml"
 #r "System.Xml.Linq"
+#endif
+
 open System
 open System.IO
 open System.Xml.Linq
@@ -11,7 +15,6 @@ let rec findsolutiondir (p:DirectoryInfo) =
 
 let root = findsolutiondir (DirectoryInfo(__SOURCE_DIRECTORY__))
 
-//It might need some manual cleaning of the resulting files but gets the job done
 let refsforaproject (dirproject:DirectoryInfo) =   seq  {
          //TODO: this currently loads fsproj's in alphabeticall order, we should instead
          //build the dependencies graph of the fsproj's and load them in topological sort order
@@ -34,8 +37,7 @@ let refsforaproject (dirproject:DirectoryInfo) =   seq  {
                  let refspath = 
                      fsProjXml.Document.Descendants(getElemName "Reference")
                      |> Seq.choose (fun elem -> getElemValue "HintPath" elem)
-                     |> Seq.map (fun ref -> //printfn "%A %A %A" (dirproject.FullName)  (dirproject.FullName + ref) (DirectoryInfo(dirproject.FullName + ref).FullName)
-                                            ("#r ", true,  DirectoryInfo(dirproject.FullName +  ".\\" + ref).FullName))
+                     |> Seq.map (fun ref -> ("#r ", true,  DirectoryInfo(dirproject.FullName +  ".\\" + ref).FullName))
 
                  let refsgac = 
                      fsProjXml.Document.Descendants(getElemName "Reference")
@@ -44,7 +46,8 @@ let refsforaproject (dirproject:DirectoryInfo) =   seq  {
 
                  let fsFiles = 
                      fsProjXml.Document.Descendants(getElemName "Compile")
-                     |> Seq.choose (fun elem -> getAttrValue "Include" elem)
+                     |> Seq.choose (fun elem -> //printfn "%A" elem
+                                                getAttrValue "Include" elem)
                      |> Seq.map (fun fsFile -> ("#load ", true, DirectoryInfo(dirproject.FullName +  ".\\" + fsFile).FullName))
 
                  let projDll = 
@@ -55,9 +58,8 @@ let refsforaproject (dirproject:DirectoryInfo) =   seq  {
                  yield! refspath
                  yield! refsgac
                  yield! projDll
-                 yield! fsFiles
+                 yield! fsFiles 
    }
-
 
 let toabsolute root rel = DirectoryInfo(root + rel).FullName
 let writerelative root path = 
@@ -66,36 +68,23 @@ let writerelative root path =
          else (if first then @".." else @"\..") + intwriterelative root.Parent path false
       intwriterelative root path true
 
-
 let getprojectdir (root:DirectoryInfo) = 
    let rec getdirs (root:DirectoryInfo) = seq {
       yield! root.GetDirectories() |> Array.filter(fun f -> f.GetFiles("*.fsproj") |> Array.length > 0 ) 
       yield! root.GetDirectories() |> Array.map(fun d -> getdirs d) |> Seq.concat}
-   
    getdirs root   
 
 let merged writeRelativeTo  = seq { 
    for fsProj in getprojectdir root do
-      yield! refsforaproject fsProj |> Seq.filter (fun (cmd, _, _) ->  cmd <> "#load ")
-                                    |> Seq.map    (fun (cmd, isfile, abspath) ->  cmd +  "@\""  +  (if isfile then writerelative writeRelativeTo (DirectoryInfo(abspath)) else abspath)  +  "\"")
-      }
+      yield! refsforaproject fsProj |> Seq.sortBy (fun (cmd, isfile, abspath) ->  if not isfile 
+                                                                                  then "A" + abspath
+                                                                                  elif cmd <> "#load " 
+                                                                                  then "B" + abspath 
+                                                                                  else "C")
+                                    |> Seq.distinct
+                                    |> Seq.map    (fun (cmd, isfile, abspath) ->  cmd +  "@\""  +  (if isfile then writerelative writeRelativeTo (DirectoryInfo(abspath)) else abspath)  +  "\"") }
 
-for fsProj in getprojectdir root do
-   File.WriteAllLines(fsProj.FullName+ "\\" + "__solmerged.fsx", merged fsProj |> Set.ofSeq)    
+do 
+   for fsProj in getprojectdir root do
+      File.WriteAllLines(fsProj.FullName+ "\\" + "__solmerged.fsx", merged fsProj)    
 
-
-//   
-//let testroot = @"C:\Users\e021230\Documents\Visual Studio 11\Projects\divsharp\"
-//let testrel =  "..\\..\\..\\.\\..\\Documents\\Visual Studio 11\\Projects\\divsharp\\Financial\\office.dll"
-//let testres = toabsolute testroot  testrel  // "C:\Users\e021230\Documents\Visual Studio 11\Projects\divsharp\Financial\office.dll"
-//let absfile = DirectoryInfo(testroot + testrel).Parent.FullName
-//let difile = DirectoryInfo("C:\Users\e021230\Documents\Visual Studio 11\Projects\office.dll")
-//let diroot = DirectoryInfo(testroot)
-//let difile1 = DirectoryInfo @"C:\Users\e021230\Documents\Visual Studio 11\"
-//let difile2 = DirectoryInfo testrel
-//let test = difile
-//
-//difile2.FullName = DirectoryInfo(diroot.FullName + "\\" + writerelative diroot difile2 ).FullName
-//writerelative diroot difile
-//writerelative diroot difile1
-//writerelative diroot difile2
