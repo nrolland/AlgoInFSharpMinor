@@ -185,7 +185,7 @@ let testmutable3 = mergesortcountmutable   ( [|1 .. 100|] |> shuffle |> List.toA
 let testmutable4 = mergesortcountmutable   [|1;4;3;9;8;6;7;2;5|]
 
 
-
+      
 // mergeSort
 let rec split = function
    | [] -> ([], [])
