@@ -1,62 +1,59 @@
-﻿module Graph
+module Graph
+  open Microsoft.FSharp.Collections
 
-let rnd = System.Random()
+  type System.Collections.Generic.IEnumerable<'T> with member this.Random = let rnd = System.Random()
+                                                                            fun () -> //printfn "random %A" this
+                                                                                      this |> Seq.nth(rnd.Next(Seq.length this))
+  let defaultArg def = function | Some x -> x | None -> def
 
-let atRandom (s:'a seq) = s |> Seq.nth (rnd.Next(Seq.length s))
+  type VertexData<'V> (identifier:int,data:'V)=
+    member val id = identifier with get,set
+    member val data = data with get,set
 
-type Node<'TDaton> =
-    int (* node identifier *) *
-    'TDaton (* node data *)
- 
-type Connection<'TDaton> =
-    int (* source Id *) *
-    int (* sink Id *) *
-    int (* weight *) *
-    'TDaton (* connection data *)
- 
-type Adjacency<'TDaton> =
-    Connection<'TDaton> list (* a list of connections to other nodes*)
- 
-type Atom<'TNodeDaton, 'TConnectionDaton> =
-    Node<'TNodeDaton> * Adjacency<'TConnectionDaton>
- 
-type Graph<'TNodeDaton, 'TConnectionDaton> =
-    Atom<'TNodeDaton, 'TConnectionDaton> list
+  type EdgeData<'E> = { id:int;  weight :int; mutable targetVertex:int; data:'E}
+
+  type Vertex<'V, 'E>(vertexData : VertexData<'V>, adjacency:EdgeData<'E> seq ) =
+   let aadjacency = ResizeArray(adjacency)
+   member val vertexData = vertexData with get,set
+   member val adjacency = aadjacency with get
+
+  let v ref refs = Vertex(VertexData<_>(fst ref,snd ref), refs |> Seq.map(fun s -> { id= 0;  weight=0; targetVertex= fst s; data=snd s})) 
 
 
-let contractone (graph:Graph<_,_>):Graph<_,_> = 
-      let contractedge = let (node, edges) = atRandom graph in atRandom edges 
-      let (head, tail, w, data) = contractedge
+  type MutableGraph<'V, 'E>  (vertexList:Vertex<'V, 'E> seq )=
+   let vlist = ResizeArray(vertexList)
 
-      let findAtom ref = graph |> List.find(fun ((r,_), _) -> r = ref )
-      let atomhead, atomtail = findAtom head, findAtom tail
+   new(arg:((int*'V)*(int*'E) seq) seq) = MutableGraph<_, _>(arg |> Seq.map(fun (ref,refs) -> v ref refs))
+   member this.vertexList with get() = vlist
+   member this.Copy() =
+      let a  = vlist |> Seq.map(fun v -> ((v.vertexData.id, v.vertexData.data), v.adjacency |> Seq.map(fun a -> a.targetVertex, a.data)))
+      MutableGraph<_,_>(a) 
+   member this.contract() = 
+      while vlist.Count > 2 do
+         let v = vlist.Random()
+         if v.adjacency.Count = 0 then ()
+         else
+            let edge = v.adjacency.Random()
+            this.mergeVertex (v.vertexData.id, edge.targetVertex)
+            vlist |> Seq.iter (fun v -> v.adjacency.RemoveAll(fun edge -> edge.targetVertex = v.vertexData.id) |> ignore)
 
-      let filterAdjacency  (al:Adjacency<_>) ref        : Adjacency<_> = al |> List.filter (fun (h,t,_,_) -> h <> ref &&  t <> ref)
-      let replaceAdjacency (al:Adjacency<_>) ref refnew : Adjacency<_> = al |> List.map    (fun (h,t,a,b) -> if h = ref then (refnew,t,a,b)
-                                                                                                             elif t = ref then (h,refnew,a,b)
-                                                                                                             else (h,t,a,b))
+   member this.vertex with get(id:int) = vlist.Find(fun v -> v.vertexData.id = id)
 
-      //I remove cross references, and merge the connection list
-      //Then I go trough all atoms, replace them with the new, and replace all connections to tail with head
-      let alh, alt = filterAdjacency (snd atomhead) tail, filterAdjacency (snd atomtail) head
-      let atomnew = fst atomhead, List.append alh alt 
+   member this.mergeVertex(oldid,withid,?mergedata) = 
+      let fmergedata = defaultArg (fst) mergedata
+      vlist |> Seq.iter(fun vertex -> vertex.adjacency |> Seq.iter(fun edge -> if edge.targetVertex = oldid 
+                                                                               then edge.targetVertex <- withid ))
+      let oldnode = vlist |> ResizeArray.tryFind( fun v -> v.vertexData.id = oldid) 
+      if oldnode.IsSome then       
+          let newnode = vlist |> ResizeArray.tryFind( fun v -> v.vertexData.id = withid) 
+          if newnode.IsNone then       
+            oldnode.Value.vertexData.id <- withid
+          else
+            newnode.Value.adjacency.AddRange(oldnode.Value.adjacency)
+            newnode.Value.vertexData.data <- fmergedata (oldnode.Value.vertexData.data,newnode.Value.vertexData.data)
+          vlist.RemoveAll(fun v -> v.vertexData.id = oldid) |> ignore
 
-      let newgraph = graph |> List.choose(fun ((ref,a), edges) -> if ref = head then
-                                                                     Some atomnew
-                                                                  elif ref = tail then
-                                                                     None
-                                                                  else
-                                                                     Some ((ref, a ), replaceAdjacency edges tail head)
-                                          )                         
-      newgraph
-
-
-let rec contract (graph:Graph<_,_>) = 
-   if graph.Length > 2 then
-      contract (contractone graph)
-   else
-      graph
-
-let mincut (graph:Graph<_,_>) = 
-   let g = contract graph
-   g.Head |> snd |> List.length
+   member this.searchBF start =
+      let visited = Set.empty
+      let queue = 
+      ()
