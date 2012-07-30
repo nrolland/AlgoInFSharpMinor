@@ -77,4 +77,5 @@ rs |> Seq.toList
 stream |> Seq.length
 let mstream = medians stream  |> Seq.toArray
 
+mstream |> Seq.sum
 

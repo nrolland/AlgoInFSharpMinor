@@ -44,27 +44,33 @@
     <None Include="Script1.fsx" />
     <None Include="algo.fsx" />
     <Compile Include="Graph.fs" />
+    <Compile Include="Bitarray.fs" />
+    <None Include="bloom.fsx" />
+    <None Include="__solmerged.fsx" />
+    <Compile Include="tree.fs" />
+    <Compile Include="heap.fs" />
+    <None Include="pq1Sort.fsx" />
+    <None Include="pq3MinCut.fsx" />
+    <None Include="pq4SCC.fsx" />
+    <None Include="pq5ShortestPath.fsx" />
+    <None Include="pq6Hash.fsx" />
+    <Compile Include="tests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Accessibility" />
+    <Reference Include="FsCheck">
+      <HintPath>..\..\packages\FsCheck.0.8.2.0\lib\net40-Client\FsCheck.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FsCheck.Xunit">
+      <HintPath>..\..\packages\FsCheck.Xunit.0.2.0.0\lib\net40-Client\FsCheck.Xunit.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FSharp.Data.TypeProviders, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.PowerPack">
-      <HintPath>..\..\packages\FSPowerPack.Community.2.1.3.1\Lib\Net40\FSharp.PowerPack.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="FSharp.PowerPack.Linq">
-      <HintPath>..\..\packages\FSPowerPack.Community.2.1.3.1\Lib\Net40\FSharp.PowerPack.Linq.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="FSharp.PowerPack.Metadata">
-      <HintPath>..\..\packages\FSPowerPack.Community.2.1.3.1\Lib\Net40\FSharp.PowerPack.Metadata.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="FSharp.PowerPack.Parallel.Seq">
-      <HintPath>..\..\packages\FSPowerPack.Community.2.1.3.1\Lib\Net40\FSharp.PowerPack.Parallel.Seq.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\..\divsharp\Packages\FSPowerPack.Core.Community.2.0.0.0\Lib\Net40\FSharp.PowerPack.dll</HintPath>
     </Reference>
     <Reference Include="FSharpx.Core">
       <HintPath>..\..\packages\FSharpx.TypeProviders.1.5.3\Lib\FSharpx.Core.dll</HintPath>
@@ -97,8 +103,16 @@
     <Reference Include="System.Xml" />
     <Reference Include="UIAutomationProvider" />
     <Reference Include="UIAutomationTypes" />
+    <Reference Include="Unquote">
+      <HintPath>..\..\packages\Unquote.2.2.2\lib\net40\Unquote.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="xunit">
+      <HintPath>..\..\packages\xunit.1.9.1\lib\net20\xunit.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
